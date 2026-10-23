@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meus Gastos</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --line: #334155; --text: #f1f5f9; --muted: #94a3b8;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --accent: #6366f1;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: env(safe-area-inset-top) 16px calc(150px + env(safe-area-inset-bottom));
+    max-width: 600px; margin: 0 auto;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+  header h1 { font-size: 20px; margin: 0; }
+  .navbtn { background: var(--card); border: 0; color: var(--text); width: 40px; height: 40px; border-radius: 12px; font-size: 20px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--card); border-radius: 14px; padding: 12px 14px; }
+  .card.full { grid-column: 1 / -1; }
+  .card small { color: var(--muted); font-size: 12px; }
+  .card b { display: block; font-size: 20px; margin-top: 4px; }
+  .card .note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  h2 { font-size: 15px; color: var(--muted); margin: 22px 0 8px; font-weight: 600; }
+  .filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip { flex: none; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+  .chip.on { background: var(--accent); border-color: var(--accent); }
+  select.chip { appearance: none; -webkit-appearance: none; width: auto; }
+  .search { margin-top: 8px; }
+  .cat-row { margin-bottom: 10px; }
+  .cat-row .top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; gap: 8px; }
+  .cat-row .top span:last-child { color: var(--muted); white-space: nowrap; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .bar i.warn { background: var(--yellow); } .bar i.over { background: var(--red); } .bar i.in { background: var(--green); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.tx { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
+  li.tx .info { flex: 1; min-width: 0; }
+  li.tx .desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li.tx small { color: var(--muted); font-size: 12px; }
+  li.tx .val { font-weight: 600; white-space: nowrap; }
+  .tag { font-size: 10px; background: var(--line); color: var(--muted); border-radius: 6px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+  .day { color: var(--muted); font-size: 12px; margin: 14px 0 6px; }
+  .empty { color: var(--muted); text-align: center; padding: 20px; }
+  .banner { background: var(--card); border: 1px dashed var(--accent); border-radius: 12px; padding: 12px; margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .banner span { flex: 1; }
+  .banner button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+  .fab {
+    position: fixed; right: 20px; bottom: calc(84px + env(safe-area-inset-bottom));
+    width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent);
+    color: #fff; font-size: 32px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  }
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: rgba(30,41,59,.95);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabs button { flex: 1; background: none; border: 0; color: var(--muted); padding: 10px 0 12px; font-size: 12px; }
+  nav.tabs button b { display: block; font-size: 20px; font-weight: normal; margin-bottom: 2px; }
+  nav.tabs button.on { color: var(--accent); }
+  .view { display: none; } .view.on { display: block; }
+  .yr-row { background: var(--card); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+  .yr-row .top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .yr-row .bar { margin-top: 3px; }
+  .yr-row.cur { outline: 1px solid var(--accent); }
+  dialog { border: 0; border-radius: 18px; background: var(--card); color: var(--text); width: min(420px, 92vw); padding: 18px; max-height: 90vh; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h3 { margin: 0 0 14px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .seg button { padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 15px; }
+  .seg button.on.gasto { background: var(--red); border-color: var(--red); }
+  .seg button.on.entrada { background: var(--green); border-color: var(--green); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 15px; margin-top: 14px; }
+  label.check input { width: 20px; height: 20px; }
+  input, select { width: 100%; padding: 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .actions button { flex: 1; padding: 12px; border-radius: 10px; border: 0; font-size: 16px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-sec { background: var(--line); color: var(--text); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red) !important; }
+  .set-row { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; }
+  .set-row span { flex: 1; }
+  .set-row input { width: 110px; padding: 8px; font-size: 15px; }
+  .set-row button { background: none; border: 0; color: var(--muted); font-size: 18px; }
+  .add-row { display: flex; gap: 8px; margin-top: 8px; }
+  .add-row button { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 0 16px; font-size: 20px; }
+  .wide { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 15px; margin-bottom: 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="navbtn" id="prev" aria-label="Anterior">‹</button>
+  <h1 id="title"></h1>
+  <button class="navbtn" id="next" aria-label="Próximo">›</button>
+</header>
+
+<!-- ===== MÊS ===== -->
+<section class="view on" id="v-mes">
+  <div class="cards">
+    <div class="card"><small>Entradas</small><b class="pos" id="totIn"></b></div>
+    <div class="card"><small>Gastos</small><b class="neg" id="totOut"></b><div class="note" id="cmp"></div></div>
+    <div class="card full"><small>Saldo do mês</small><b id="totBal"></b>
+      <div id="budgetBox" style="display:none;margin-top:10px">
+        <div class="note" id="budgetTxt" style="margin-bottom:6px"></div>
+        <div class="bar"><i id="budgetBar"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fixedBanner"></div>
+
+  <h2>Gastos por categoria</h2>
+  <div id="byCat"></div>
+
+  <h2>Lançamentos</h2>
+  <div class="filters">
+    <button class="chip on" data-type="todos">Todos</button>
+    <button class="chip" data-type="entrada">Entradas</button>
+    <button class="chip" data-type="gasto">Gastos</button>
+    <select class="chip" id="catFilter"></select>
+  </div>
+  <input class="search" id="search" type="search" placeholder="🔍 Buscar descrição...">
+  <div id="list"></div>
+</section>
+
+<!-- ===== ANO ===== -->
+<section class="view" id="v-ano">
+  <div class="cards">
+    <div class="card"><small>Entradas no ano</small><b class="pos" id="yIn"></b></div>
+    <div class="card"><small>Gastos no ano</small><b class="neg" id="yOut"></b></div>
+    <div class="card full"><small>Saldo do ano</small><b id="yBal"></b><div class="note" id="yAvg"></div></div>
+  </div>
+  <h2>Por mês <span style="font-weight:normal">(toque para abrir)</span></h2>
+  <div id="yMonths"></div>
+  <h2>Gastos por categoria no ano</h2>
+  <div id="yCats"></div>
+</section>
+
+<!-- ===== AJUSTES ===== -->
+<section class="view" id="v-cfg">
+  <h2>Orçamento mensal total</h2>
+  <input id="cfgBudget" inputmode="decimal" placeholder="Sem limite (ex: 3.000,00)">
+  <p class="hint">Mostra uma barra no mês avisando quanto do limite já foi usado.</p>
+
+  <h2>Categorias de gasto e limite por categoria</h2>
+  <div id="cfgCatsGasto"></div>
+  <div class="add-row"><input id="newCatGasto" placeholder="Nova categoria de gasto"><button data-addcat="gasto">+</button></div>
+
+  <h2>Categorias de entrada</h2>
+  <div id="cfgCatsEntrada"></div>
+  <div class="add-row"><input id="newCatEntrada" placeholder="Nova categoria de entrada"><button data-addcat="entrada">+</button></div>
+
+  <h2>Backup</h2>
+  <button class="wide" id="exportBtn">⬇️ Exportar backup (.json)</button>
+  <button class="wide" id="csvBtn">📊 Exportar planilha do mês (.csv)</button>
+  <button class="wide" id="importBtn">⬆️ Importar backup</button>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <p class="hint">Os dados ficam só neste aparelho. Faça backup de vez em quando.</p>
+  <h2>Zona de perigo</h2>
+  <button class="wide btn-danger" id="wipeBtn">Apagar todos os dados</button>
+</section>
+
+<button class="fab" id="addBtn" aria-label="Adicionar">+</button>
+
+<nav class="tabs">
+  <button class="on" data-view="mes"><b>📅</b>Mês</button>
+  <button data-view="ano"><b>📊</b>Ano</button>
+  <button data-view="cfg"><b>⚙️</b>Ajustes</button>
+</nav>
+
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h3 id="dlgTitle">Novo lançamento</h3>
+    <div class="seg">
+      <button type="button" class="gasto on" data-t="gasto">Gasto</button>
+      <button type="button" class="entrada" data-t="entrada">Entrada</button>
+    </div>
+    <label>Valor (R$)</label>
+    <input id="fValor" inputmode="decimal" placeholder="0,00" required>
+    <label>Descrição</label>
+    <input id="fDesc" placeholder="Ex: Mercado" list="descList" autocomplete="off">
+    <datalist id="descList"></datalist>
+    <label>Categoria</label>
+    <select id="fCat"></select>
+    <label>Data</label>
+    <input id="fData" type="date" required>
+    <label class="check"><input type="checkbox" id="fFixo"> Fixo (repete todo mês)</label>
+    <div class="actions">
+      <button type="button" class="btn-sec" id="cancelBtn">Cancelar</button>
+      <button type="submit" class="btn-primary">Salvar</button>
+    </div>
+    <div class="actions" id="editActions">
+      <button type="button" class="btn-sec" id="dupBtn">Duplicar</button>
+      <button type="button" class="btn-danger" id="delBtn">Excluir</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const KEY = "gastos-v1", CFG_KEY = "gastos-cfg";
+const DEFAULT_CFG = {
+  cats: {
+    gasto: ["Alimentação", "Mercado", "Moradia", "Transporte", "Saúde", "Lazer", "Contas", "Educação", "Compras", "Outros"],
+    entrada: ["Salário", "Freelance", "Investimentos", "Presente", "Outros"]
+  },
+  budget: 0,
+  catBudgets: {}
+};
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const brl = v => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const parseVal = s => parseFloat(String(s).replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0;
+const fmtVal = v => v ? v.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+const sum = arr => arr.reduce((s, t) => s + t.valor, 0);
+
+let txs = load(KEY, []);
+let cfg = Object.assign(structuredClone(DEFAULT_CFG), load(CFG_KEY, {}));
+let cur = new Date(); cur.setDate(1);
+let view = "mes", fType = "todos", fCat = "", query = "";
+let newType = "gasto", editingId = null;
+
+function load(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } }
+function save() { localStorage.setItem(KEY, JSON.stringify(txs)); localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+function monthKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+function inMonth(d) { const mk = monthKey(d); return txs.filter(t => t.data.startsWith(mk)); }
+function shiftMonth(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+function fixedKey(t) { return t.tipo + "|" + t.cat + "|" + (t.desc || "").toLowerCase(); }
+
+function render() {
+  if (view === "mes") renderMonth();
+  else if (view === "ano") renderYear();
+  else renderCfg();
+  $("addBtn").style.display = view === "cfg" ? "none" : "";
+  $("prev").style.visibility = $("next").style.visibility = view === "cfg" ? "hidden" : "";
+}
+
+/* ---------- MÊS ---------- */
+function renderMonth() {
+  const label = cur.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  $("title").textContent = label[0].toUpperCase() + label.slice(1);
+  const month = inMonth(cur);
+  const totIn = sum(month.filter(t => t.tipo === "entrada"));
+  const totOut = sum(month.filter(t => t.tipo === "gasto"));
+  $("totIn").textContent = brl(totIn);
+  $("totOut").textContent = brl(totOut);
+  $("totBal").textContent = brl(totIn - totOut);
+  $("totBal").className = totIn - totOut >= 0 ? "pos" : "neg";
+
+  // comparação com mês anterior
+  const prevOut = sum(inMonth(shiftMonth(cur, -1)).filter(t => t.tipo === "gasto"));
+  if (prevOut > 0 && totOut > 0) {
+    const pct = Math.round((totOut / prevOut - 1) * 100);
+    $("cmp").textContent = (pct > 0 ? "▲ " : pct < 0 ? "▼ " : "") + Math.abs(pct) + "% vs mês anterior";
+  } else $("cmp").textContent = "";
+
+  // orçamento geral
+  if (cfg.budget > 0) {
+    const pct = totOut / cfg.budget * 100;
+    $("budgetBox").style.display = "";
+    $("budgetTxt").textContent = pct > 100
+      ? `Orçamento estourado em ${brl(totOut - cfg.budget)} (${Math.round(pct)}%)`
+      : `Orçamento: ${brl(totOut)} de ${brl(cfg.budget)} · resta ${brl(cfg.budget - totOut)}`;
+    $("budgetBar").style.width = Math.min(pct, 100) + "%";
+    $("budgetBar").className = pct > 100 ? "over" : pct > 80 ? "warn" : "in";
+  } else $("budgetBox").style.display = "none";
+
+  // fixos do mês anterior que ainda não estão neste mês
+  const have = new Set(month.map(fixedKey));
+  const pending = inMonth(shiftMonth(cur, -1)).filter(t => t.fixo && !have.has(fixedKey(t)));
+  $("fixedBanner").innerHTML = pending.length
+    ? `<div class="banner"><span>🔁 ${pending.length} lançamento(s) fixo(s) do mês anterior (${brl(sum(pending.filter(t => t.tipo === "gasto")))} em gastos)</span><button onclick="copyFixed()">Copiar</button></div>`
+    : "";
+
+  // gastos por categoria (com limite por categoria, se houver)
+  const by = {};
+  month.filter(t => t.tipo === "gasto").forEach(t => by[t.cat] = (by[t.cat] || 0) + t.valor);
+  Object.keys(cfg.catBudgets).forEach(c => { if (cfg.catBudgets[c] > 0 && !(c in by)) by[c] = 0; });
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  $("byCat").innerHTML = rows.length ? rows.map(([c, v]) => {
+    const lim = cfg.catBudgets[c];
+    let right, pct, cls = "";
+    if (lim > 0) {
+      pct = v / lim * 100; cls = pct > 100 ? "over" : pct > 80 ? "warn" : "in";
+      right = `${brl(v)} / ${brl(lim)}`;
+    } else {
+      pct = totOut ? v / totOut * 100 : 0;
+      right = `${brl(v)} · ${Math.round(pct)}%`;
+    }
+    return `<div class="cat-row"><div class="top"><span>${esc(c)}</span><span>${right}</span></div>
+      <div class="bar"><i class="${cls}" style="width:${Math.min(pct, 100)}%"></i></div></div>`;
+  }).join("") : `<div class="empty">Nenhum gasto neste mês</div>`;
+
+  // filtro de categorias
+  const cats = [...new Set(month.filter(t => fType === "todos" || t.tipo === fType).map(t => t.cat))].sort();
+  if (fCat && !cats.includes(fCat)) fCat = "";
+  $("catFilter").innerHTML = `<option value="">Categoria ▾</option>` + cats.map(c => `<option ${c === fCat ? "selected" : ""}>${esc(c)}</option>`).join("");
+  $("catFilter").classList.toggle("on", !!fCat);
+
+  // lista agrupada por dia
+  const q = query.trim().toLowerCase();
+  const list = month
+    .filter(t => (fType === "todos" || t.tipo === fType) && (!fCat || t.cat === fCat) && (!q || (t.desc || "").toLowerCase().includes(q) || t.cat.toLowerCase().includes(q)))
+    .sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+  if (!list.length) { $("list").innerHTML = `<div class="empty">Nenhum lançamento</div>`; return; }
+  let html = "", lastDay = "";
+  if (fType !== "todos" || fCat || q) html += `<div class="day">${list.length} lançamento(s) · total ${brl(sum(list))}</div>`;
+  list.forEach(t => {
+    if (t.data !== lastDay) {
+      lastDay = t.data;
+      const d = new Date(t.data + "T12:00");
+      html += `<div class="day">${d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}</div>`;
+    }
+    html += `<li class="tx" onclick="openForm(${t.id})">
+      <div class="info"><div class="desc">${esc(t.desc || t.cat)}${t.fixo ? '<span class="tag">FIXO</span>' : ""}</div>
+      <small>${esc(t.cat)}</small></div>
+      <span class="val ${t.tipo === "entrada" ? "pos" : "neg"}">${t.tipo === "entrada" ? "+" : "−"} ${brl(t.valor)}</span></li>`;
+  });
+  $("list").innerHTML = "<ul>" + html + "</ul>";
+}
+
+function copyFixed() {
+  const have = new Set(inMonth(cur).map(fixedKey));
+  const last = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+  let id = Date.now();
+  inMonth(shiftMonth(cur, -1)).filter(t => t.fixo && !have.has(fixedKey(t))).forEach(t => {
+    const day = Math.min(+t.data.slice(8), last);
+    txs.push({ ...t, id: id++, data: monthKey(cur) + "-" + String(day).padStart(2, "0") });
+  });
+  save(); render();
+}
+
+/* ---------- ANO ---------- */
+function renderYear() {
+  const y = cur.getFullYear();
+  $("title").textContent = y;
+  const year = txs.filter(t => t.data.startsWith(y + "-"));
+  const yIn = sum(year.filter(t => t.tipo === "entrada")), yOut = sum(year.filter(t => t.tipo === "gasto"));
+  $("yIn").textContent = brl(yIn); $("yOut").textContent = brl(yOut);
+  $("yBal").textContent = brl(yIn - yOut); $("yBal").className = yIn - yOut >= 0 ? "pos" : "neg";
+  const monthsWithData = new Set(year.map(t => t.data.slice(0, 7))).size;
+  $("yAvg").textContent = monthsWithData ? `Média de gastos: ${brl(yOut / monthsWithData)}/mês` : "";
+
+  const data = MESES.map((m, i) => {
+    const mt = year.filter(t => +t.data.slice(5, 7) === i + 1);
+    return { i, m, inn: sum(mt.filter(t => t.tipo === "entrada")), out: sum(mt.filter(t => t.tipo === "gasto")) };
+  });
+  const max = Math.max(1, ...data.map(d => Math.max(d.inn, d.out)));
+  const nowKey = monthKey(new Date());
+  $("yMonths").innerHTML = data.map(d => `
+    <div class="yr-row ${nowKey === y + "-" + String(d.i + 1).padStart(2, "0") ? "cur" : ""}" onclick="goMonth(${d.i})">
+      <div class="top"><span>${d.m}</span>${d.inn || d.out
+        ? `<span class="${d.inn - d.out >= 0 ? "pos" : "neg"}">${brl(d.inn - d.out)}</span>`
+        : `<span style="color:var(--muted)">—</span>`}</div>
+      <div class="bar"><i class="in" style="width:${d.inn / max * 100}%"></i></div>
+      <div class="bar"><i class="over" style="width:${d.out / max * 100}%"></i></div>
+    </div>`).join("");
+
+  const by = {};
+  year.filter(t => t.tipo === "gasto").forEach(t => by[t.cat] = (by[t.cat] || 0) + t.valor);
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  $("yCats").innerHTML = rows.length ? rows.map(([c, v]) => `
+    <div class="cat-row"><div class="top"><span>${esc(c)}</span><span>${brl(v)} · ${Math.round(v / yOut * 100)}%</span></div>
+    <div class="bar"><i style="width:${v / yOut * 100}%"></i></div></div>`).join("")
+    : `<div class="empty">Nenhum gasto neste ano</div>`;
+}
+function goMonth(i) { cur = new Date(cur.getFullYear(), i, 1); setView("mes"); }
+
+/* ---------- AJUSTES ---------- */
+function renderCfg() {
+  $("title").textContent = "Ajustes";
+  $("cfgBudget").value = fmtVal(cfg.budget);
+  $("cfgCatsGasto").innerHTML = cfg.cats.gasto.map((c, i) => `
+    <div class="set-row"><span>${esc(c)}</span>
+      <input inputmode="decimal" placeholder="Limite" value="${fmtVal(cfg.catBudgets[c])}" onchange="setCatBudget(cfg.cats.gasto[${i}], this.value)">
+      <button onclick="removeCat('gasto', ${i})" aria-label="Remover">✕</button></div>`).join("");
+  $("cfgCatsEntrada").innerHTML = cfg.cats.entrada.map((c, i) => `
+    <div class="set-row"><span>${esc(c)}</span><button onclick="removeCat('entrada', ${i})" aria-label="Remover">✕</button></div>`).join("");
+}
+function setCatBudget(c, v) { const n = parseVal(v); if (n > 0) cfg.catBudgets[c] = n; else delete cfg.catBudgets[c]; save(); }
+function removeCat(tipo, i) {
+  const c = cfg.cats[tipo][i];
+  if (cfg.cats[tipo].length <= 1) return alert("Mantenha pelo menos uma categoria.");
+  if (!confirm(`Remover a categoria "${c}"? Os lançamentos antigos continuam com ela.`)) return;
+  cfg.cats[tipo] = cfg.cats[tipo].filter(x => x !== c); delete cfg.catBudgets[c]; save(); render();
+}
+document.querySelectorAll("[data-addcat]").forEach(b => b.onclick = () => {
+  const tipo = b.dataset.addcat, inp = tipo === "gasto" ? $("newCatGasto") : $("newCatEntrada");
+  const name = inp.value.trim();
+  if (!name || cfg.cats[tipo].includes(name)) return;
+  cfg.cats[tipo].push(name); inp.value = ""; save(); render();
+});
+$("cfgBudget").onchange = e => { cfg.budget = parseVal(e.target.value); save(); render(); };
+
+$("exportBtn").onclick = () => download(`gastos-backup-${new Date().toISOString().slice(0, 10)}.json`,
+  JSON.stringify({ txs, cfg }, null, 2), "application/json");
+$("csvBtn").onclick = () => {
+  const rows = [["Data", "Tipo", "Categoria", "Descrição", "Valor", "Fixo"]].concat(
+    inMonth(cur).sort((a, b) => a.data.localeCompare(b.data))
+      .map(t => [t.data.split("-").reverse().join("/"), t.tipo, t.cat, t.desc || "", (t.tipo === "gasto" ? -t.valor : t.valor).toFixed(2).replace(".", ","), t.fixo ? "sim" : ""]));
+  download(`gastos-${monthKey(cur)}.csv`, "﻿" + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(";")).join("\n"), "text/csv");
+};
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+}
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const newTxs = Array.isArray(data) ? data : data.txs;  // aceita backup antigo (só lista)
+    if (!Array.isArray(newTxs)) throw 0;
+    if (!confirm(`Importar ${newTxs.length} lançamentos? Os dados atuais serão substituídos.`)) return;
+    txs = newTxs;
+    if (data.cfg) cfg = Object.assign(structuredClone(DEFAULT_CFG), data.cfg);
+    save(); render();
+  } catch { alert("Arquivo inválido"); }
+  e.target.value = "";
+};
+$("wipeBtn").onclick = () => {
+  if (!confirm("Apagar TODOS os lançamentos e ajustes? Isso não pode ser desfeito.")) return;
+  txs = []; cfg = structuredClone(DEFAULT_CFG); save(); render();
+};
+
+/* ---------- NAVEGAÇÃO ---------- */
+function setView(v) {
+  view = v;
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  window.scrollTo(0, 0); render();
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
+$("prev").onclick = () => { cur = view === "ano" ? new Date(cur.getFullYear() - 1, cur.getMonth(), 1) : shiftMonth(cur, -1); render(); };
+$("next").onclick = () => { cur = view === "ano" ? new Date(cur.getFullYear() + 1, cur.getMonth(), 1) : shiftMonth(cur, 1); render(); };
+
+document.querySelectorAll("[data-type]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-type]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); fType = b.dataset.type; render();
+});
+$("catFilter").onchange = e => { fCat = e.target.value; render(); };
+$("search").oninput = e => { query = e.target.value; render(); };
+
+/* ---------- FORMULÁRIO ---------- */
+function setNewType(t, cat) {
+  newType = t;
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  const cats = [...cfg.cats[t]];
+  if (cat && !cats.includes(cat)) cats.push(cat);  // categoria antiga já removida
+  $("fCat").innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join("");
+  if (cat) $("fCat").value = cat;
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setNewType(b.dataset.t));
+
+function openForm(id) {
+  $("form").reset();
+  editingId = id || null;
+  const t = id && txs.find(x => x.id === id);
+  // sugestões de descrição a partir do histórico
+  $("descList").innerHTML = [...new Set(txs.map(x => x.desc).filter(Boolean))].slice(-50).map(d => `<option value="${esc(d)}">`).join("");
+  if (t) {
+    $("dlgTitle").textContent = "Editar lançamento";
+    setNewType(t.tipo, t.cat);
+    $("fValor").value = fmtVal(t.valor); $("fDesc").value = t.desc || "";
+    $("fData").value = t.data; $("fFixo").checked = !!t.fixo;
+  } else {
+    $("dlgTitle").textContent = "Novo lançamento";
+    setNewType("gasto");
+    const today = new Date();
+    const d = monthKey(today) === monthKey(cur) ? today : cur;
+    $("fData").value = monthKey(d) + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  $("editActions").style.display = t ? "" : "none";
+  $("dlg").showModal();
+}
+$("addBtn").onclick = () => openForm();
+$("cancelBtn").onclick = () => $("dlg").close();
+
+// ao escolher uma descrição já usada, preenche a categoria dela
+$("fDesc").onchange = () => {
+  const prev = [...txs].reverse().find(x => x.desc && x.desc.toLowerCase() === $("fDesc").value.trim().toLowerCase());
+  if (prev && !editingId) { setNewType(prev.tipo, prev.cat); if (!$("fValor").value) $("fValor").value = fmtVal(prev.valor); }
+};
+
+$("form").onsubmit = e => {
+  e.preventDefault();
+  const valor = parseVal($("fValor").value);
+  if (!(valor > 0)) { alert("Informe um valor válido"); return; }
+  const data = { tipo: newType, valor, desc: $("fDesc").value.trim(), cat: $("fCat").value, data: $("fData").value, fixo: $("fFixo").checked };
+  if (editingId) Object.assign(txs.find(x => x.id === editingId), data);
+  else txs.push({ id: Date.now(), ...data });
+  save();
+  const [y, m] = data.data.split("-");
+  cur = new Date(+y, +m - 1, 1);
+  $("dlg").close(); render();
+};
+$("delBtn").onclick = () => {
+  if (!confirm("Excluir este lançamento?")) return;
+  txs = txs.filter(t => t.id !== editingId); save(); $("dlg").close(); render();
+};
+$("dupBtn").onclick = () => {
+  const t = txs.find(x => x.id === editingId);
+  txs.push({ ...t, id: Date.now() }); save(); $("dlg").close(); render();
+};
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+render();
+</script>
+</body>
+</html>
